@@ -1,0 +1,21 @@
+<form id="order-form" class="form">
+    <div>
+        <label for="card-field">Card number</label>
+        <input name="cardNumber" id="card-field" class="form__field" required/>
+    </div>
+    <div>
+        <label for="exp-month-field">Expiration month</label>
+        <input type="number" min="1" max="12" name="expirationMonth" id="exp-month-field" class="form__field" required/>
+    </div>
+    <div>
+        <label for="exp-year-field">Expiration year</label>
+        <input type="number" min="2020" max="2100" name="expirationYear" id="exp-year-field" class="form__field" required/>
+    </div>
+    <div>
+        <label for="cvs-field">Cvs</label>
+        <input type="number" min="100" max="999" name="cvs" id="cvs-field" class="form__field" required/>
+    </div>
+    <div id="order-form-error" class="form-error hidden"></div>
+    <button type="button" class="btn" id="order-submit-btn">Order</button>
+</form>
+<script src="/public/js/order.js"></script>

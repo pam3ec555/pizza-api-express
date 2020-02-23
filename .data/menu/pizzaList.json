@@ -1,0 +1,65 @@
+[
+  {
+    "id": 1,
+    "name": "Half & Half pizza",
+    "price": 14,
+    "size": 10,
+    "image": "/public/img/pizza-list/half-and-half.jpg"
+  },
+  {
+    "id": 2,
+    "name": "Thanksgiving Turkey",
+    "price": 11,
+    "size": 10,
+    "image": "/public/img/pizza-list/thanksgiving-turkey.jpg"
+  },
+  {
+    "id": 3,
+    "name": "Cheese",
+    "price": 9,
+    "size": 12,
+    "image": "/public/img/pizza-list/cheese.jpg"
+  },
+  {
+    "id": 4,
+    "name": "Pepperoni",
+    "price": 11,
+    "size": 12,
+    "image": "/public/img/pizza-list/pepperoni.jpg"
+  },
+  {
+    "id": 5,
+    "name": "Half Pepperoni Half Cheese",
+    "price": 10,
+    "size": 12,
+    "image": "/public/img/pizza-list/half-pepperoni-half-cheese.jpg"
+  },
+  {
+    "id": 6,
+    "name": "Sausage",
+    "price": 13,
+    "size": 14,
+    "image": "/public/img/pizza-list/sausage.jpg"
+  },
+  {
+    "id": 7,
+    "name": "Supreme",
+    "price": 13.5,
+    "size": 10,
+    "image": "/public/img/pizza-list/supreme.jpg"
+  },
+  {
+    "id": 8,
+    "name": "The Meats",
+    "price": 13.5,
+    "size": 12,
+    "image": "/public/img/pizza-list/the-meats.jpg"
+  },
+  {
+    "id": 9,
+    "name": "Buffalo Chicken",
+    "price": 13,
+    "size": 10,
+    "image": "/public/img/pizza-list/buffalo-chicken.jpg"
+  }
+]

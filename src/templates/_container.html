@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <title>{{head.title}}</title>
+
+    <link type="image/x-icon" rel="icon" href="/public/favicon.ico">
+    <link rel="stylesheet" href="/public/style.css">
+</head>
+<body>
+    <script src="/public/js/functions.js"></script>
+    <script src="/public/js/Auth.js"></script>
+    <header class="header">
+        <a href="/">
+            <img src="/public/img/logo.png" alt="">
+        </a>
+        <ul class="header__nav-list">
+            <li class="header__nav-item">
+                <a href="/" class="header__nav-link">Menu</a>
+            </li>
+            <li class="header__nav-item header__nav-item--logged-in">
+                <a href="/my-cart" class="header__nav-link">Cart</a>
+            </li>
+            <li class="header__nav-item header__nav-item--logged-in">
+                <button id="logout-btn" class="header__nav-link">Logout</button>
+            </li>
+            <li class="header__nav-item header__nav-item--guest">
+                <a href="/sign-in" class="header__nav-link">Login</a>
+            </li>
+            <li class="header__nav-item header__nav-item--guest">
+                <a href="/sign-up" class="header__nav-link">Sign up</a>
+            </li>
+        </ul>
+    </header>
+    <main class="content">
+        {{children}}
+    </main>
+    <footer class="footer">
+        <a href="/">
+            <img src="/public/img/logo.png" alt="">
+        </a>
+        <span>©Pizza, all rights reserved</span>
+    </footer>
+</body>
+</html>
