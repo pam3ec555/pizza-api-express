@@ -4,22 +4,29 @@ const { objectSize, hash } = require('../../utils');
 const { USERS_DIR, CARTS_DIR } = require('../../utils/constants');
 const { verifyUser } = require('../../auth');
 
-/**
+const users = require('express').Router();
+
+users.route('/users')
+  .get((req, res) => {
+    res.send('hello');
+  });
+
+/*/!**
  * @type {Set<string>}
- */
+ *!/
 const acceptableMethods = new Set(['post', 'get', 'put', 'delete']);
 
-/**
+/!**
  * @type {Set<string>}
- */
+ *!/
 const deleteDirs = new Set([CARTS_DIR]);
 
 const routes = {};
 
-/**
+/!**
  * @param {Object} data
  * @param {function} callback
- */
+ *!/
 routes.users = (data, callback) => {
   if (acceptableMethods.has(data.method)) {
     routes._users[data.method](data, callback);
@@ -30,10 +37,10 @@ routes.users = (data, callback) => {
 
 routes._users = {};
 
-/**
+/!**
  * @param {Object} data
  * @param {function} callback
- */
+ *!/
 routes._users.post = (data, callback) => {
   if (typeof data === 'object' && typeof data.payload === 'object') {
     const { name, email, address, password } = data.payload;
@@ -101,10 +108,10 @@ routes._users.post = (data, callback) => {
   }
 };
 
-/**
+/!**
  * @param {Object} data
  * @param {function} callback
- */
+ *!/
 routes._users.get = (data, callback) => {
   if (typeof data === 'object' && typeof data.query === 'object') {
     const { email } = data.query;
@@ -152,10 +159,10 @@ routes._users.get = (data, callback) => {
   }
 };
 
-/**
+/!**
  * @param {Object} data
  * @param {function} callback
- */
+ *!/
 routes._users.put = (data, callback) => {
   if (typeof data === 'object' && typeof data.payload === 'object' && typeof data.query === 'object') {
     const { email } = data.query;
@@ -228,10 +235,10 @@ routes._users.put = (data, callback) => {
   }
 };
 
-/**
+/!**
  * @param {Object} data
  * @param {function} callback
- */
+ *!/
 routes._users.delete = (data, callback) => {
   if (typeof data === 'object' && typeof data.query === 'object') {
     const { email } = data.query;
@@ -293,6 +300,6 @@ routes._users.delete = (data, callback) => {
       data: { error: 'Query params are empty' },
     });
   }
-};
+};*/
 
-module.exports = routes;
+module.exports = users;

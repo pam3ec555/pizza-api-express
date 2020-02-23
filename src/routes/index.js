@@ -1,9 +1,9 @@
 const apiRoutes = require('./apiRoutes');
-const pageRoutes = require('./pageRoutes');
 
-const routes = {
-  ...apiRoutes,
-  ...pageRoutes,
+const routes = {};
+
+routes.init = (app) => {
+  apiRoutes.init(app);
 };
 
 module.exports = routes;
