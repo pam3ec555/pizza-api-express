@@ -1,15 +1,14 @@
-const store = require('../../store');
 const { hash } = require('../../utils');
-const { CARTS_DIR, USERS_DIR } = require('../../utils/constants');
 const { verifyUser } = require('../../auth');
 const { body, query, validationResult } = require('express-validator');
 const { Router } = require('express');
+const store = require('../../stores/UsersStore');
 
 const users = Router();
 
 users.route('/users')
   .get([
-    query('email').isEmail().withMessage('Invalid email'), // Todo check user for existing
+    query('email').isEmail().withMessage('Invalid email'), // Todo: change email to id
   ], (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -18,23 +17,19 @@ users.route('/users')
 
     const { email } = req.query;
 
+    // Todo: Change verifying method
     verifyUser({
       email,
       token: req.headers.token,
-      callback: (err) => {
+      callback: async (err) => {
         if (!err) {
-          store.read({
-            dir: USERS_DIR,
-            file: email,
-            callback: (err, userData) => {
-              if (!err && userData) {
-                delete userData.hashedPassword;
-                res.status(200).json(userData);
-              } else {
-                res.status(404).send();
-              }
-            },
-          });
+          try {
+            const userData = await store.read(email);
+            delete userData.hashedPassword;
+            res.status(200).json(userData);
+          } catch (e) {
+            res.status(500).send(e);
+          }
         } else {
           res.status(401).json({ error: err });
         }
@@ -42,10 +37,10 @@ users.route('/users')
     });
   })
   .post([
-    body('email').isEmail().withMessage('Invalid email'), // Todo: check user for existing here
+    body('email').isEmail().withMessage('Invalid email'),
     body(['name', 'address']).not().isEmpty().withMessage('Required field').trim(),
     body('password').isLength({ min: 6 }).withMessage('Password should be equal or greater than 6 symbols'),
-  ], (req, res) => {
+  ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(422).json({ errors: errors.array() });
@@ -53,42 +48,26 @@ users.route('/users')
 
     const { name, email, password, address } = req.body;
 
-    store.read({
-      dir: USERS_DIR,
-      file: email,
-      callback: (err) => {
-        if (err) {
-          const hashedPassword = hash(password);
-          if (hashedPassword) {
-            store.create({
-              dir: USERS_DIR,
-              file: email,
-              data: {
-                name,
-                email,
-                hashedPassword,
-                address,
-                registeredAt: new Date(),
-              },
-              callback: (err) => {
-                if (!err) {
-                  res.status(204).send();
-                } else {
-                  res.status(500).json({ error: `Could create the user. ${err}` });
-                }
-              },
-            });
-          } else {
-            res.status(500).json({ error: `Could not hash the password. ${err}` });
-          }
-        } else {
-          res.status(409).json({ error: `User with email ${email} already exists` });
-        }
-      },
-    });
+    try {
+      const hashedPassword = hash(password);
+      await store.create({
+        name,
+        email,
+        hashedPassword,
+        address,
+        registeredAt: new Date(),
+      });
+      res.status(204).send();
+    } catch (e) {
+      if (e.code === 11000) {
+        res.status(409).json({ errors: 'User with specified email already exists' });
+      } else {
+        res.status(500).send(e);
+      }
+    }
   })
   .put([
-    query('email').isEmail().withMessage('Invalid email'), // Todo check user for existing
+    query('email').isEmail().withMessage('Invalid email'), // Todo: change email to id
   ], (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -101,37 +80,21 @@ users.route('/users')
       verifyUser({
         token: req.headers.token,
         email,
-        callback: (err) => {
+        callback: async (err) => {
           if (!err) {
-            store.read({
-              dir: USERS_DIR,
-              file: email,
-              callback: (err, userData) => {
-                if (!err && userData) {
-                  if (name) {
-                    userData.name = name;
-                  }
-                  if (address) {
-                    userData.address = address;
-                  }
-
-                  store.update({
-                    dir: USERS_DIR,
-                    file: email,
-                    data: userData,
-                    callback: (err) => {
-                      if (!err) {
-                        res.status(204).send();
-                      } else {
-                        res.status(500).json({ error: 'Could not update the user' });
-                      }
-                    },
-                  });
-                } else {
-                  res.status(404).send();
-                }
-              },
-            })
+            const data = {};
+            if (name) {
+              data.name = name;
+            }
+            if (address) {
+              data.address = address;
+            }
+            try {
+              await store.update(email, data);
+              res.status(204).send();
+            } catch (e) {
+              res.status(500).send(e);
+            }
           } else {
             res.status(401).json({ error: err });
           }
@@ -142,7 +105,7 @@ users.route('/users')
     }
   })
   .delete([
-    query('email').isEmail().withMessage('Invalid email'), // Todo check user for existing
+    query('email').isEmail().withMessage('Invalid email'), // Todo: change email to id
   ], (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -154,35 +117,14 @@ users.route('/users')
     verifyUser({
       token: req.headers.token,
       email,
-      callback: (err) => {
+      callback: async (err) => {
         if (!err) {
-          store.read({
-            dir: USERS_DIR,
-            file: email,
-            callback: (err) => {
-              if (!err) {
-                store.delete({
-                  dir: USERS_DIR,
-                  file: email,
-                  callback: (err) => {
-                    if (!err) {
-                      store.delete({
-                        dir: CARTS_DIR,
-                        file: email,
-                        callback: () => {
-                        },
-                      });
-                      res.status(204).send();
-                    } else {
-                      res.status(500).json({ error: 'Could not delete the user' });
-                    }
-                  },
-                });
-              } else {
-                res.status(404).send();
-              }
-            },
-          });
+          try {
+            await store.delete(email);
+            res.status(204).send();
+          } catch (e) {
+            res.status(500).send(e);
+          }
         } else {
           res.status(401).json({ error: err });
         }
