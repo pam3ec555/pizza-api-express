@@ -1,125 +1,106 @@
-const fieldValidation = require('../../utils/fieldValidation');
 const store = require('../../store');
-const { objectSize, hash } = require('../../utils');
-const { USERS_DIR, CARTS_DIR } = require('../../utils/constants');
+const { hash } = require('../../utils');
+const { CARTS_DIR, USERS_DIR } = require('../../utils/constants');
 const { verifyUser } = require('../../auth');
+const { body, query, validationResult } = require('express-validator');
+const { Router } = require('express');
 
-const users = require('express').Router();
+const users = Router();
 
 users.route('/users')
-  .get((req, res) => {
-    res.send('hello');
-  });
-
-/*/!**
- * @type {Set<string>}
- *!/
-const acceptableMethods = new Set(['post', 'get', 'put', 'delete']);
-
-/!**
- * @type {Set<string>}
- *!/
-const deleteDirs = new Set([CARTS_DIR]);
-
-const routes = {};
-
-/!**
- * @param {Object} data
- * @param {function} callback
- *!/
-routes.users = (data, callback) => {
-  if (acceptableMethods.has(data.method)) {
-    routes._users[data.method](data, callback);
-  } else {
-    callback({ statusCode: 405 });
-  }
-};
-
-routes._users = {};
-
-/!**
- * @param {Object} data
- * @param {function} callback
- *!/
-routes._users.post = (data, callback) => {
-  if (typeof data === 'object' && typeof data.payload === 'object') {
-    const { name, email, address, password } = data.payload;
-    const errors = {
-      name: fieldValidation(name, { requiredField: true }),
-      email: fieldValidation(email, { requiredField: true, email: true }),
-      address: fieldValidation(address, { requiredField: true }),
-      password: fieldValidation(password, { requiredField: true, minLength: 6 }),
-    };
-
-    if (objectSize(errors) === 0) {
-      store.read({
-        dir: USERS_DIR,
-        file: email,
-        callback: (err) => {
-          if (err) {
-            const hashedPassword = hash(password);
-            if (hashedPassword) {
-              store.create({
-                dir: USERS_DIR,
-                file: email,
-                data: {
-                  name,
-                  email,
-                  hashedPassword,
-                  address,
-                  registeredAt: new Date(),
-                },
-                callback: (err) => {
-                  if (!err) {
-                    callback({ statusCode: 204 });
-                  } else {
-                    callback({
-                      statusCode: 500,
-                      data: { error: `Could create the user. ${err}` },
-                    });
-                  }
-                },
-              });
-            } else {
-              callback({
-                statusCode: 500,
-                data: { error: `Could not hash the password. ${err}` },
-              });
-            }
-          } else {
-            callback({
-              statusCode: 409,
-              data: { error: `User with email ${email} already exists` },
-            });
-          }
-        },
-      });
-    } else {
-      callback({
-        statusCode: 400,
-        data: { error: errors },
-      });
+  .get([
+    query('email').isEmail().withMessage('Invalid email'), // Todo check user for existing
+  ], (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ errors: errors.array() });
     }
-  } else {
-    callback({
-      statusCode: 400,
-      data: { error: 'Payload must be an object' },
-    });
-  }
-};
 
-/!**
- * @param {Object} data
- * @param {function} callback
- *!/
-routes._users.get = (data, callback) => {
-  if (typeof data === 'object' && typeof data.query === 'object') {
-    const { email } = data.query;
-    const emailError = fieldValidation(email, { requiredField: true, email: true });
-    if (!emailError) {
+    const { email } = req.query;
+
+    verifyUser({
+      email,
+      token: req.headers.token,
+      callback: (err) => {
+        if (!err) {
+          store.read({
+            dir: USERS_DIR,
+            file: email,
+            callback: (err, userData) => {
+              if (!err && userData) {
+                delete userData.hashedPassword;
+                res.status(200).json(userData);
+              } else {
+                res.status(404).send();
+              }
+            },
+          });
+        } else {
+          res.status(401).json({ error: err });
+        }
+      },
+    });
+  })
+  .post([
+    body('email').isEmail().withMessage('Invalid email'), // Todo: check user for existing here
+    body(['name', 'address']).not().isEmpty().withMessage('Required field').trim(),
+    body('password').isLength({ min: 6 }).withMessage('Password should be equal or greater than 6 symbols'),
+  ], (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ errors: errors.array() });
+    }
+
+    const { name, email, password, address } = req.body;
+
+    store.read({
+      dir: USERS_DIR,
+      file: email,
+      callback: (err) => {
+        if (err) {
+          const hashedPassword = hash(password);
+          if (hashedPassword) {
+            store.create({
+              dir: USERS_DIR,
+              file: email,
+              data: {
+                name,
+                email,
+                hashedPassword,
+                address,
+                registeredAt: new Date(),
+              },
+              callback: (err) => {
+                if (!err) {
+                  res.status(204).send();
+                } else {
+                  res.status(500).json({ error: `Could create the user. ${err}` });
+                }
+              },
+            });
+          } else {
+            res.status(500).json({ error: `Could not hash the password. ${err}` });
+          }
+        } else {
+          res.status(409).json({ error: `User with email ${email} already exists` });
+        }
+      },
+    });
+  })
+  .put([
+    query('email').isEmail().withMessage('Invalid email'), // Todo check user for existing
+  ], (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ errors: errors.array() });
+    }
+
+    const { name, address } = req.body;
+    if (name || address) {
+      const { email } = req.query;
       verifyUser({
+        token: req.headers.token,
         email,
-        token: data.headers.token,
         callback: (err) => {
           if (!err) {
             store.read({
@@ -127,179 +108,86 @@ routes._users.get = (data, callback) => {
               file: email,
               callback: (err, userData) => {
                 if (!err && userData) {
-                  delete userData.hashedPassword;
-                  callback({
-                    statusCode: 200,
-                    data: userData,
-                  });
-                } else {
-                  callback({ statusCode: 404 });
-                }
-              },
-            });
-          } else {
-            callback({
-              statusCode: 401,
-              data: { error: err },
-            });
-          }
-        },
-      });
-    } else {
-      callback({
-        statusCode: 400,
-        data: { error: { email: emailError } },
-      });
-    }
-  } else {
-    callback({
-      statusCode: 400,
-      data: { error: 'Query params are empty' },
-    });
-  }
-};
-
-/!**
- * @param {Object} data
- * @param {function} callback
- *!/
-routes._users.put = (data, callback) => {
-  if (typeof data === 'object' && typeof data.payload === 'object' && typeof data.query === 'object') {
-    const { email } = data.query;
-    const emailError = fieldValidation(email, { requiredField: true, email: true });
-    if (!emailError) {
-      const { name, address } = data.payload;
-      if (name || address) {
-        verifyUser({
-          token: data.headers.token,
-          email,
-          callback: (err) => {
-            if (!err) {
-              store.read({
-                dir: USERS_DIR,
-                file: email,
-                callback: (err, userData) => {
-                  if (!err && userData) {
-                    if (name) {
-                      userData.name = name;
-                    }
-                    if (address) {
-                      userData.address = address;
-                    }
-
-                    store.update({
-                      dir: USERS_DIR,
-                      file: email,
-                      data: userData,
-                      callback: (err) => {
-                        if (!err) {
-                          callback({ statusCode: 204 });
-                        } else {
-                          callback({
-                            statusCode: 500,
-                            data: { error: 'Could not update the user' },
-                          });
-                        }
-                      },
-                    });
-                  } else {
-                    callback({ statusCode: 404 });
+                  if (name) {
+                    userData.name = name;
                   }
-                },
-              })
-            } else {
-              callback({
-                statusCode: 401,
-                data: { error: err },
-              });
-            }
-          }
-        });
-      } else {
-        callback({
-          statusCode: 400,
-          data: { error: 'There are no fields to update' },
-        });
-      }
-    } else {
-      callback({
-        statusCode: 400,
-        data: { error: { email: emailError } },
-      });
-    }
-  } else {
-    callback({
-      statusCode: 400,
-      data: { error: 'Query params are empty or payload is not defined' },
-    });
-  }
-};
+                  if (address) {
+                    userData.address = address;
+                  }
 
-/!**
- * @param {Object} data
- * @param {function} callback
- *!/
-routes._users.delete = (data, callback) => {
-  if (typeof data === 'object' && typeof data.query === 'object') {
-    const { email } = data.query;
-    const emailError = fieldValidation(email, { requiredField: true, email: true });
-    if (!emailError) {
-      verifyUser({
-        token: data.headers.token,
-        email,
-        callback: (err) => {
-          if (!err) {
-            store.read({
-              dir: USERS_DIR,
-              file: email,
-              callback: (err) => {
-                if (!err && data) {
-                  store.delete({
+                  store.update({
                     dir: USERS_DIR,
                     file: email,
+                    data: userData,
                     callback: (err) => {
                       if (!err) {
-                        deleteDirs.forEach((dir) => {
-                          store.delete({
-                            dir,
-                            file: email,
-                            callback: () => {},
-                          });
-                        });
-                        callback({ statusCode: 204 });
+                        res.status(204).send();
                       } else {
-                        callback({
-                          statusCode: 500,
-                          data: { error: 'Could not delete the user' },
-                        });
+                        res.status(500).json({ error: 'Could not update the user' });
                       }
                     },
                   });
                 } else {
-                  callback({ statusCode: 404 });
+                  res.status(404).send();
                 }
               },
-            });
+            })
           } else {
-            callback({
-              statusCode: 401,
-              data: { error: err },
-            });
+            res.status(401).json({ error: err });
           }
         }
-      })
-    } else {
-      callback({
-        statusCode: 400,
-        data: { error: { email: emailError } },
       });
+    } else {
+      res.status(400).json({ error: 'There are no fields to update' });
     }
-  } else {
-    callback({
-      statusCode: 400,
-      data: { error: 'Query params are empty' },
+  })
+  .delete([
+    query('email').isEmail().withMessage('Invalid email'), // Todo check user for existing
+  ], (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ errors: errors.array() });
+    }
+
+    const { email } = req.query;
+
+    verifyUser({
+      token: req.headers.token,
+      email,
+      callback: (err) => {
+        if (!err) {
+          store.read({
+            dir: USERS_DIR,
+            file: email,
+            callback: (err) => {
+              if (!err) {
+                store.delete({
+                  dir: USERS_DIR,
+                  file: email,
+                  callback: (err) => {
+                    if (!err) {
+                      store.delete({
+                        dir: CARTS_DIR,
+                        file: email,
+                        callback: () => {
+                        },
+                      });
+                      res.status(204).send();
+                    } else {
+                      res.status(500).json({ error: 'Could not delete the user' });
+                    }
+                  },
+                });
+              } else {
+                res.status(404).send();
+              }
+            },
+          });
+        } else {
+          res.status(401).json({ error: err });
+        }
+      },
     });
-  }
-};*/
+  });
 
 module.exports = users;
